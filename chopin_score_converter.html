@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chopin Competition Score Converter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .primary {
+            background: #4CAF50;
+            color: white;
+        }
+        .primary:hover {
+            background: #45a049;
+        }
+        .secondary {
+            background: #2196F3;
+            color: white;
+        }
+        .secondary:hover {
+            background: #0b7dda;
+        }
+        .stage-selector {
+            margin-bottom: 20px;
+        }
+        .stage-selector label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .stage-selector select {
+            padding: 8px;
+            font-size: 14px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        #preview {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f0f0f0;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>XIX Chopin Piano Competition 2025</h1>
+        <p class="subtitle">Score Data Converter - Convert competition scores to CSV/XLSX</p>
+        
+        <div class="info">
+            <strong>Instructions:</strong> Select a stage to view the scores, then download as CSV or Excel format.
+            Note: 's' means a juror was absent/skipped scoring, and is replaced with 0 in corrected scores.
+        </div>
+
+        <div class="stage-selector">
+            <label for="stageSelect">Select Stage:</label>
+            <select id="stageSelect">
+                <option value="stage1">Stage 1 (84 contestants)</option>
+                <option value="stage2">Stage 2 (45 contestants)</option>
+                <option value="stage3">Stage 3 (20 contestants)</option>
+                <option value="final">Final Stage (11 contestants)</option>
+            </select>
+        </div>
+
+        <div class="button-group">
+            <button class="primary" onclick="downloadCSV()">Download CSV</button>
+            <button class="secondary" onclick="downloadXLSX()">Download Excel (XLSX)</button>
+        </div>
+
+        <div id="preview"></div>
+    </div>
+
+    <script>
+        const juryMembers = [
+            "Garrick Ohlsson", "John Allison", "Yulianna Avdeeva", "Michel Beroff",
+            "Sa Chen", "Dang Thai Son", "Akiko Ebi", "Nelson Goerner",
+            "Krzysztof Jabłoński", "Kevin Kenner", "Momo Kodama", "Robert McDonald",
+            "Piotr Paleczny", "Ewa Pobłocka", "K. Popowa-Zydroń", "John Rink", "Wojciech Świtała"
+        ];
+
+        const stage1Data = [
+            [1, "Ziye", "Tao", 14, 17, 19, 21, 21, "s", 18, 16, 17, 20, 21, 21, 18, 21, 18, 16, 15, 18.41],
+            [2, "Chun Lam", "U", 9, 14, 18, 16, 17, "s", 16, 17, 16, 15, 17, 16, 16, 19, 16, 15, 12, 15.79],
+            [3, "Tomoharu", "Ushida", 19, 16, 20, 19, 22, 21, 24, 24, 20, 19, 22, 24, "s", 22, 23, 19, 18, 20.81],
+            [4, "Ryan", "Wang", 17, 19, 19, 17, 21, 16, 18, 18, 15, 17, 17, 15, 16, 15, 17, 18, 16, 17.07],
+            [5, "Zitong", "Wang", 22, 21, 21, 17, 22, "s", 22, 17, 16, 23, 23, 21, 19, 23, 22, 22, 22, 21.03],
+            [6, "Jan", "Widlarz", 19, 16, 20, 17, 20, 17, 17, 17, 16, 19, 20, 18, 21, 21, "s", 18, 20, 18.50],
+            [7, "Andrzej", "Wierciński", 17, 18, 21, 24, 20, 18, 21, 16, 16, 15, 21, 20, 21, 17, 19, 21, "s", 19.02],
+            [8, "Krzysztof", "Wierciński", 18, 12, 19, 17, 22, 19, 21, 17, 16, 20, 19, 18, 22, 17, 18, 18, 18, 18.40],
+            [9, "Victoria", "Wong", 18, 18, 20, 17, 22, 17, 18, 17, 15, "s", 18, 19, 20, 20, 18, 19, 17, 18.29],
+            [10, "Maiqi", "Wu", 20, 15, 19, 19, 21, 19, 17, 18, 19, 19, 18, 17, 19, "s", 21, 17, 20, 18.66],
+            [11, "Yifan", "Wu", 20, 20, 19, 24, 23, 20, 23, 24, 19, 20, 24, 20, 21, 22, 21, 22, 23, 21.47],
+            [12, "Miki", "Yamagata", 20, 13, 18, 22, 21, 17, 22, 20, 19, 23, 23, 22, 19, 17, 18, 18, 19, 19.61],
+            [13, "Ryota", "Yamazaki", 19, 13, 20, 16, 21, 17, 21, 20, 16, 16, 21, 16, 18, 16, 17, 16, 15, 17.54],
+            [14, "Fanze", "Yang", 19, 10, 20, 18, 21, 21, 22, 20, 16, 19, 18, 23, 19, 21, 19, 16, 16, 18.95],
+            [15, "William", "Yang", 19, 21, 18, 17, 20, 22, 24, 22, 21, 20, 18, "s", 18, 21, 20, 23, 20, 20.22],
+            [16, "Yuanfan", "Yang", 17, 22, 20, 18, 20, 17, 17, 19, 20, 17, 18, 16, 20, 17, 19, 16, 20, 18.38],
+            [17, "Yichen", "Yu", 17, 22, 18, 17, 21, 16, 17, 20, 22, 22, 20, 16, 21, 18, 21, 16, 16, 18.79],
+            [18, "Yuewen", "Yu", 23, 17, 20, 16, 21, 16, 17, 15, 16, 16, 19, 19, 19, 21, 24, 23, 16, 18.46],
+            [19, "Andrey", "Zenin", 21, 22, 21, 19, 22, 15, 19, 14, 12, 15, 18, 18, 21, 15, 19, 16, 15, 17.78],
+            [20, "Jacky", "Zhang", 15, 17, 21, 25, 24, 17, 23, 20, 16, 19, 20, 24, 23, 24, 20, 20, 22, 20.75],
+            [21, "Yonghuan", "Zhong", 16, 20, 18, 15, 21, 18, 17, 16, 16, 16, 21, 16, 21, 15, 17, 16, "s", 17.33],
+            [22, "Hanyuan", "Zhu", 15, 16, 18, 15, 22, "s", 24, 17, 16, 23, 22, 20, 18, 21, 21, 16, 16, 18.59],
+            [23, "Jingting", "Zhu", 15, 18, 19, 17, 20, 16, 17, 18, 21, 18, 20, "s", 19, 20, 20, 19, 16, 18.33],
+            [24, "Piotr", "Alexewicz", 15, 22, 21, 19, 21, 21, 24, 24, 18, 18, 24, 20, 23, 22, 19, 24, 20, 21.02],
+            [25, "Jonas", "Aumiller", 15, 23, 20, 18, 23, 22, 21, 21, 19, 17, 23, 22, 22, 22, 20, 20, 17, 20.46],
+            [26, "Yanyan", "Bao", 22, 13, 22, 19, 23, 22, 21, 16, 16, 21, 18, 23, 23, 22, 19, 17, 23, 20.35],
+            [27, "Michał", "Basista", 22, 15, 21, 17, 21, 17, 17, 17, 15, 18, 18, 19, 18, 16, 18, 16, 20, 17.87],
+            [28, "Kai-Min", "Chang", 22, 17, 20, 18, 23, "s", 19, 17, 17, 21, 20, 19, 17, 21, 24, 19, 21, 19.59],
+            [29, "Kevin", "Chen", 20, 23, 22, 25, 24, 18, 25, 23, 24, 24, 24, 24, 22, 22, 21, 22, 25, 22.93],
+            [30, "Xuehong", "Chen", 19, 18, 21, 19, 21, 17, 21, 22, 19, 24, 19, 23, 23, 20, 21, 19, 21, 20.40],
+            [31, "Zixi", "Chen", 23, 18, 23, 18, 21, 18, 20, 21, 17, 20, 21, 19, 20, 21, 23, 22, 19, 20.25],
+            [32, "Hoi Leong", "Cheong", 22, 13, 19, 17, 22, 20, 22, 17, 17, 22, 18, "s", 19, 22, 22, 18, 17, 19.39],
+            [33, "Diana", "Cooper", 22, 17, 20, 19, 20, 22, 21, 15, 16, 18, 19, 16, 19, 16, 19, 20, 19, 18.71],
+            [34, "Athena", "Deng", 23, 13, 20, 17, 19, "s", 23, 16, 16, 17, 17, 18, 18, 17, 18, 18, 17, 17.80],
+            [35, "Yubo", "Deng", 19, 18, 20, 18, 22, "s", 17, 23, 16, 19, 19, 20, 22, 22, 23, 21, 15, 19.72],
+            [36, "Mateusz", "Dubiel", 17, 20, 20, 21, 21, 18, 17, 21, 15, 19, 19, 16, 21, 20, 20, 18, 21, 19.12],
+            [37, "Yu-Ang", "Fan", 12, 15, 19, 19, 22, 21, 16, 16, 15, 21, 18, 24, 19, 17, 19, 15, 15, 17.71],
+            [38, "Alberto", "Ferro", 17, 15, 21, 22, 21, 17, 18, 22, 18, 15, 23, 19, 18, 17, 20, 19, 20, 18.98],
+            [39, "Yang (Jack)", "Gao", 24, 17, 20, 21, 21, 21, 23, 23, 15, 20, 19, 23, 18, 19, 24, 22, 16, 20.51],
+            [40, "Shuguang", "Gong", 18, 13, 19, 17, 21, 18, 21, 18, 19, "s", 19, 21, 18, 16, 23, 19, 21, 18.91],
+            [41, "Eric", "Guo", 18, 22, 24, 24, 22, 22, 22, 25, 18, 22, 25, 22, 24, 23, 23, 25, 23, 22.78],
+            [42, "Wei-Ting", "Hsieh", 14, 21, 24, 21, 21, 17, 22, 17, 14, 19, 21, 18, 17, 15, 19, 21, 20, 19.02],
+            [43, "Xiaoyu", "Hu", 24, 13, 25, 17, 21, 24, 23, 16, 15, 20, 19, 16, 19, 24, 24, 18, 16, 19.60],
+            [44, "Hasan", "Ignatov", 18, 16, 22, 16, 22, 17, 21, 21, 15, 16, 19, 16, 18, 20, 19, 20, 19, 18.51],
+            [45, "Zihan", "Jin", 22, 21, 23, 20, 21, 20, 20, 21, 21, 23, 19, 22, 18, 21, 18, 19, 20, 20.53],
+            [46, "Adam", "Kałduński", 22, 15, 24, 23, 23, 21, 25, 21, 15, 21, 23, 20, 23, 16, "s", 23, 21, 21.44],
+            [47, "David", "Khrikuli", 18, 21, 23, 23, 23, 24, 22, 19, 15, 19, 23, 19, 18, 15, 20, 23, 20, 20.52],
+            [48, "Antoni", "Kłeczek", 20, 14, 18, 16, 21, 16, 18, 20, 20, 15, 19, 19, "s", "s", 18, 13, 16, 17.64],
+            [49, "Kaito", "Kobayashi", 21, 20, 20, 21, 21, 18, 20, 19, 12, 16, 22, 22, 18, 20, 17, 16, 16, 18.96],
+            [50, "Mateusz", "Krzyżowski", 22, 13, 22, 19, 22, 23, 22, 18, 15, 17, 17, 16, 23, 18, 20, 16, 19, 19.03],
+            [51, "Shiori", "Kuwahara", 22, 16, 25, 24, 24, 22, 23, 25, 16, 21, 23, 20, 22, 24, 23, 18, 21, 22.03],
+            [52, "Shushi", "Kyomasu", 24, 15, 19, 19, 20, 17, 19, 19, 21, 19, 21, 18, 18, 20, 23, 17, 20, 19.30],
+            [53, "Hyo", "Lee", 23, 20, 21, 24, 21, 17, 24, 20, 20, 19, 21, 23, 23, "s", 19, 22, 20, 21.13],
+            [54, "Hyuk", "Lee", 20, 21, 20, 25, 21, 16, 22, 19, 22, 22, 22, 21, 22, "s", 20, 23, 21, 21.13],
+            [55, "Kwanwook", "Lee", 19, 18, 21, 23, 21, 21, 22, 18, 23, 21, 19, 19, 18, 21, 18, 19, 17, 19.87],
+            [56, "Luwangzi", "Li", 19, 17, 19, 21, 24, 15, 20, 17, 19, 22, 18, 23, 19, 17, 22, 16, 17, 19.03],
+            [57, "Tianyou", "Li", 21, 18, 20, 20, 24, 17, 21, 18, 18, 22, 20, 18, 18, 22, 22, 20, 17, 19.69],
+            [58, "Xiaoxuan", "Li", 15, 19, 20, 17, 24, 21, 23, 22, 17, 23, 20, "s", 23, 24, 19, 24, 20, 20.88],
+            [59, "Zhexiang", "Li", 19, 19, 21, 17, 20, 23, 23, 15, 19, 21, 21, 21, 24, 19, 16, 18, 21, 19.89],
+            [60, "Hao-Wei", "Lin", 10, 10, 19, 22, 21, 17, 19, 14, 17, 18, 19, 16, 17, 19, 17, 18, 15, 17.22],
+            [61, "Pedro", "Lopez Salas", 8, 9, 22, 16, 20, 14, 16, 12, 16, 19, 18, 16, 17, 16, 15, 13, 12, 15.33],
+            [62, "Eric", "Lu", 22, 19, 23, 24, 23, "s", 22, 21, 17, 21, 24, "s", 24, 22, 18, 22, 23, 21.82],
+            [63, "Philipp", "Lynov", 20, 20, 23, 20, 23, 20, 23, 23, 20, 21, 24, 19, 22, 22, 19, 19, 19, 21.00],
+            [64, "Tianyao", "Lyu", 20, 16, 23, 22, 22, 23, 23, 19, 24, 23, 22, 23, 24, 24, "s", 19, 23, 22.06],
+            [65, "Tiankun", "Ma", 19, 18, 24, 25, 22, 19, 18, 20, 17, 20, 23, 20, 18, 18, 19, 16, 18, 19.45],
+            [66, "Xuanyi", "Mao", 23, 20, 24, 24, 20, 17, 21, 18, 18, 18, 17, 18, 20, 15, 15, 15, 16, 18.56],
+            [67, "Ruben", "Micieli", 23, 17, 22, 21, 24, 23, 23, 19, 19, 20, 19, 21, 21, 15, 21, 21, 19, 20.61],
+            [68, "Nathalia", "Milstein", 24, 21, 22, 22, 23, 18, 24, 25, 16, 17, 23, 21, 19, 19, 21, 24, 20, 21.26],
+            [69, "Yumeka", "Nakagawa", 17, 16, 21, 22, 23, 17, 23, 17, 17, 19, 22, 24, 20, 22, 21, 18, 18, 19.78],
+            [70, "Yulia", "Nakashima", 17, 18, 20, 17, 20, 17, 19, 16, 16, 15, 20, 19, 18, 14, 18, 16, 18, 17.56],
+            [71, "Viet Trung", "Nguyen", 17, 20, 22, 18, 21, "s", 18, 14, 20, "s", 21, 22, 19, 20, "s", 20, 17, 19.37],
+            [72, "Yuya", "Nishimoto", 18, 16, 21, 20, 21, 16, 19, 13, 20, 16, 24, 20, 22, 16, 18, 21, "s", 18.84],
+            [73, "Vincent", "Ong", 21, 11, 22, 19, 24, 24, 23, 24, 24, 25, 24, 24, 18, 23, 22, 17, 21, 22.07],
+            [74, "Arisa", "Onoda", 17, 14, 18, 17, 21, "s", 20, 13, 14, 20, 19, 19, 18, 18, 16, 19, 17, 17.63],
+            [75, "Piotr", "Pawlak", 24, 24, 25, 22, 21, 17, 24, 19, 12, 15, 20, 23, 23, 19, 19, 24, 19, 20.92],
+            [76, "Yehuda", "Prokopowicz", 24, 20, 23, 23, 24, 17, 21, 19, 15, 19, 20, 19, 23, 20, 22, 22, 19, 20.73],
+            [77, "Hao", "Rao", 17, 15, 24, 23, 21, 18, 21, 25, 19, 21, 20, 20, 25, 23, 24, 19, 24, 21.27],
+            [78, "Anthony", "Ratinov", 23, 18, 23, 21, 22, 16, 23, 18, 19, 18, 23, "s", 22, 24, 23, 20, 22, 21.06],
+            [79, "Zuzanna", "Sejbuk", 18, 17, 19, 16, 20, 16, 17, 15, 15, 17, 20, 22, 21, 17, 19, 14, 19, 17.72],
+            [80, "Jun", "Shimada", 19, 17, 21, 22, 21, 19, 22, 18, 16, 19, 20, 22, 18, 18, 20, 17, 18, 19.25],
+            [81, "Miyu", "Shindo", 20, 18, 21, 24, 23, 23, 24, 20, 18, 24, 22, 22, 23, 22, 22, 22, 23, 21.92],
+            [82, "Mana", "Shoji", 18, 16, 20, 16, 21, 18, 19, 16, 16, 22, 21, 22, 18, 18, "s", 22, 20, 18.93],
+            [83, "Gabriele", "Strata", 16, 20, 22, 15, 19, 24, 22, 19, 14, 20, 19, 20, 18, 22, 21, 23, 20, 19.84],
+            [84, "Eva", "Strejcova", 17, 21, 20, 15, 21, 16, 24, 16, 13, 16, 20, 16, 20, 15, 22, 19, 18, 18.11]
+        ];
+
+        const stage2Data = [
+            [20, "Jacky", "Zhang", 19, 19, 20, 21, 20, 19, 18, 18, 16, 18, 18, 19, 23, 19, 17, 18, 19, 18.80],
+            [24, "Piotr", "Alexewicz", 19, 23, 22, 22, 22, 19, 23, 23, 17, 17, 22, 21, 21, 21, 21, 21, 21, 21.08],
+            [25, "Jonas", "Aumiller", 19, 20, 21, 20, 21, 22, 23, 22, 18, 17, 21, 20, 19, 19, 16, 20, 18, 19.81],
+            [26, "Yanyan", "Bao", 18, 18, 21, 19, 23, 17, 18, 18, 17, 19, 16, 19, 22, 17, 19, 20, 22, 18.82],
+            [28, "Kai-Min", "Chang", 21, 20, 20, 21, 23, "s", 18, 22, 19, 21, 20, 20, 18, 24, 20, 22, 20, 20.52],
+            [29, "Kevin", "Chen", 20, 22, 23, 24, 24, 19, 23, 23, 24, 24, 23, 22, 22, 20, 19, 22, 24, 22.41],
+            [30, "Xuehong", "Chen", 18, 19, 21, 20, 21, 19, 23, 19, 19, 20, 17, 22, 22, 17, 22, 18, 21, 19.90],
+            [31, "Zixi", "Chen", 22, 16, 21, 21, 21, 17, 18, 22, 19, 21, 22, 21, 17, 16, 18, 17, 18, 19.29],
+            [35, "Yubo", "Deng", 17, 15, 20, 19, 22, "s", 23, 22, 18, 17, 19, 19, 21, 21, 20, 16, 16, 19.09],
+            [39, "Yang (Jack)", "Gao", 25, 17, 20, 21, 24, 18, 23, 24, 17, 20, 23, 23, 16, 24, 20, 24, 18, 21.18],
+            [41, "Eric", "Guo", 18, 19, 22, 24, 21, 18, 18, 22, 20, 20, 24, 21, 20, 21, 18, 22, 19, 20.32],
+            [43, "Xiaoyu", "Hu", 20, 20, 22, 18, 21, 18, 17, 17, 17, 20, 18, 20, 20, 22, 18, 17, 17, 18.81],
+            [45, "Zihan", "Jin", 21, 22, 20, 18, 20, 20, 17, 21, 21, 22, 16, 21, 16, 18, 16, 18, 17, 19.14],
+            [46, "Adam", "Kałduński", 21, 16, 22, 21, 20, 18, 20, 20, 17, 18, 20, 21, 21, 18, "s", 22, 19, 19.72],
+            [47, "David", "Khrikuli", 17, 24, 23, 24, 23, 22, 23, 24, 19, 23, 23, 18, 19, 12, 19, 24, 20, 21.35],
+            [51, "Shiori", "Kuwahara", 21, 20, 22, 24, 23, 19, 23, 22, 19, 18, 23, 16, 22, 24, 22, 21, 20, 21.28],
+            [53, "Hyo", "Lee", 22, 22, 22, 20, 20, 21, 23, 20, 20, 20, 20, 20, 23, "s", 19, 19, 22, 20.79],
+            [54, "Hyuk", "Lee", 17, 20, 20, 25, 20, 20, 22, 20, 21, 21, 19, 24, 22, "s", 21, 21, 21, 20.79],
+            [55, "Kwanwook", "Lee", 21, 17, 20, 20, 22, 21, 20, 18, 18, 21, 17, 18, 18, 17, 18, 17, 17, 18.72],
+            [58, "Xiaoxuan", "Li", 22, 18, 21, 23, 20, 18, 21, 20, 16, 23, 18, "s", 22, 23, 19, 19, 21, 20.30],
+            [59, "Zhexiang", "Li", 19, 22, 23, 21, 21, 22, 23, 17, 17, 19, 17, 17, 19, 16, 17, 19, 18, 19.08],
+            [57, "Tianyou", "Li", 23, 20, 23, 21, 24, 18, 23, 23, 24, 23, 19, 22, 19, 22, 20, 23, 22, 21.86],
+            [62, "Eric", "Lu", 24, 23, 21, 24, 22, "s", 24, 25, 18, 22, 24, "s", 22, 25, 22, 25, 22, 23.03],
+            [63, "Philipp", "Lynov", 19, 22, 22, 18, 21, 18, 17, 20, 18, 17, 24, 17, 18, 17, 17, 20, 18, 18.71],
+            [64, "Tianyao", "Lyu", 19, 17, 20, 24, 21, 20, 22, 21, 18, 21, 20, 20, 25, 24, "s", 20, 22, 20.78],
+            [67, "Ruben", "Micieli", 23, 17, 23, 21, 21, 18, 17, 21, 19, 19, 21, 17, 20, 15, 16, 20, 17, 19.12],
+            [68, "Nathalia", "Milstein", 21, 21, 20, 22, 20, 17, 20, 21, 16, 21, 19, 20, 17, 15, 16, 21, 17, 19.26],
+            [69, "Yumeka", "Nakagawa", 17, 21, 20, 23, 21, 23, 24, 21, 17, 22, 20, 20, 19, 19, 15, 19, 18, 19.98],
+            [73, "Vincent", "Ong", 17, 16, 20, 19, 23, 24, 23, 24, 18, 21, 25, 21, 20, 24, 21, 23, 20, 21.23],
+            [75, "Piotr", "Pawlak", 25, 23, 22, 21, 19, 19, 22, 21, 17, 21, 19, 19, 21, 16, 20, 24, 21, 20.59],
+            [76, "Yehuda", "Prokopowicz", 23, 22, 23, 22, 21, 17, 18, 22, 16, 22, 19, 21, 21, 20, 19, 19, 19, 20.36],
+            [77, "Hao", "Rao", 16, 18, 22, 20, 21, 17, 17, 24, 17, 19, 17, 22, 22, 21, 18, 18, 19, 19.15],
+            [78, "Anthony", "Ratinov", 22, 17, 21, 20, 21, 18, 21, 17, 19, 21, 22, "s", 19, 21, 20, 20, 21, 20.13],
+            [81, "Miyu", "Shindo", 17, 20, 20, 23, 22, 20, 19, 18, 18, 21, 22, 19, 23, 23, 22, 22, 23, 20.82],
+            [83, "Gabriele", "Strata", 16, 22, 22, 18, 22, 23, 24, 25, 17, 17, 22, 21, 21, 17, 17, 22, 21, 20.63],
+            [3, "Tomoharu", "Ushida", 20, 19, 24, 25, 22, 19, 21, 21, 24, 22, 21, 22, "s", 22, 20, 18, 19, 21.08],
+            [5, "Zitong", "Wang", 22, 22, 23, 21, 22, "s", 21, 17, 16, 24, 19, 23, 18, 24, 18, 21, 18, 20.69],
+            [11, "Yifan", "Wu", 21, 19, 21, 24, 21, 17, 23, 22, 18, 20, 23, 20, 19, 18, 18, 20, 22, 20.32],
+            [12, "Miki", "Yamagata", 19, 18, 21, 24, 20, 17, 22, 21, 17, 22, 23, 21, 18, 16, 21, 21, 23, 20.35],
+            [15, "William", "Yang", 21, 16, 20, 23, 24, 24, 24, 16, 22, 24, 22, "s", 21, 25, 24, 25, 21, 22.38],
+            [39, "Yang (Jack)", "Gao", 25, 19, 20, 20, 21, 17, 16, 19, 17, 19, 20, 21, 18, 20, 22, 25, 21, 19.88],
+        ];
+
+        const stage3Data = [
+            [41, "Eric", "Guo", 17, 18, 21, 23, 19, 18, 22, 21, 18, 19, 24, 19, 19, 17, 18, 22, 20, 19.54],
+            [47, "David", "Khrikuli", 18, 24, 22, 24, 22, 20, 16, 24, 21, 20, 22, 20, 21, 14, 19, 23, 20, 20.77],
+            [51, "Shiori", "Kuwahara", 18, 21, 22, 24, 22, 19, 21, 24, 20, 17, 23, 22, 20, 22, 23, 21, 22, 21.36],
+            [53, "Hyo", "Lee", 21, 20, 22, 21, 19, 21, 24, 22, 18, 22, 20, 21, 22, "s", 20, 19, 21, 20.79],
+            [54, "Hyuk", "Lee", 17, 18, 20, 24, 20, 20, 23, 21, 20, 19, 20, 19, 21, "s", 20, 19, 21, 20.03],
+            [57, "Tianyou", "Li", 22, 24, 23, 22, 24, 19, 22, 24, 21, 22, 20, 20, 21, 21, 22, 24, 22, 21.98],
+            [58, "Xiaoxuan", "Li", 22, 19, 20, 19, 19, 18, 20, 20, 20, 22, 20, "s", 21, 22, 19, 18, 19, 19.85],
+            [64, "Tianyao", "Lyu", 19, 21, 21, 21, 20, 19, 18, 23, 22, 23, 23, 22, 23, 23, "s", 20, 23, 21.43],
+            [73, "Vincent", "Ong", 17, 18, 20, 21, 21, 22, 22, 23, 21, 22, 24, 17, 20, 20, 21, 20, 19, 20.55],
+            [75, "Piotr", "Pawlak", 24, 24, 20, 21, 17, 19, 23, 20, 18, 17, 20, 18, 21, 15, 17, 18, 19, 19.31],
+            [76, "Yehuda", "Prokopowicz", 23, 22, 22, 18, 19, 18, 18, 22, 19, 18, 21, 18, 22, 18, 18, 19, 19, 19.49],
+            [81, "Miyu", "Shindo", 19, 20, 20, 23, 20, 21, 22, 20, 23, 23, 20, 21, 23, 21, 21, 20, 21, 21.06],
+            [3, "Tomoharu", "Ushida", 21, 20, 21, 21, 21, 19, 20, 19, 22, 20, 20, 23, "s", 20, 23, 20, 20, 20.58],
+            [5, "Zitong", "Wang", 23, 23, 22, 25, 22, "s", 24, 23, 19, 25, 23, 22, 19, 24, 20, 25, 23, 22.80],
+            [11, "Yifan", "Wu", 20, 19, 20, 24, 18, 17, 21, 20, 20, 20, 23, 20, 20, 17, 19, 20, 20, 19.80],
+            [15, "William", "Yang", 21, 19, 20, 21, 21, 20, 19, 18, 21, 24, 21, "s", 19, 19, 24, 23, 23, 20.69],
+            [24, "Piotr", "Alexewicz", 18, 21, 22, 24, 21, 21, 23, 23, 19, 21, 23, 18, 19, 19, 19, 21, 21, 20.74],
+            [29, "Kevin", "Chen", 16, 22, 22, 24, 22, 23, 22, 22, 25, 23, 23, 23, 23, 18, 21, 23, 23, 22.36],
+            [62, "Eric", "Lu", 23, 24, 20, 23, 22, "s", 25, 25, 21, 24, 24, "s", 22, 24, 23, 24, 24, 23.29]
+        ];
+
+        const finalData = [
+            [57, "Tianyou", "Li", 18, 21, 18, 21, 24, 19, 17, 19, 19, 18, 20, 19, 18, 16, 19, 20, 20, 19.09],
+            [62, "Eric", "Lu", 20, 22, 19, 25, 20, "s", 20, 24, 20, 21, 23, "s", 22, 22, 21, 24, 20, 21.41],
+            [64, "Tianyao", "Lyu", 17, 20, 17, 22, 18, 20, 23, 23, 24, 24, 20, 21, 24, 24, "s", 19, 22, 21.25],
+            [73, "Vincent", "Ong", 19, 18, 18, 22, 24, 24, 22, 25, 23, 20, 25, 20, 18, 21, 17, 23, 19, 21.04],
+            [81, "Miyu", "Shindo", 19, 20, 15, 22, 19, 20, 20, 20, 20, 21, 20, 19, 19, 18, 21, 19, 21, 19.72],
+            [5, "Zitong", "Wang", 19, 25, 20, 21, 18, "s", 20, 23, 19, 19, 22, 22, 21, 22, 22, 20, 19, 20.64],
+            [15, "William", "Yang", 19, 19, 16, 21, 23, 20, 18, 17, 22, 23, 22, "s", 23, 19, 23, 21, 20, 20.48],
+            [24, "Piotr", "Alexewicz", 19, 22, 19, 24, 19, 21, 25, 22, 19, 22, 23, 22, 22, 18, 20, 22, 23, 21.30],
+            [29, "Kevin", "Chen", 19, 24, 21, 25, 24, 20, 19, 21, 24, 21, 21, 21, 23, 20, 21, 21, 23, 21.58],
+            [47, "David", "Khrikuli", 17, 25, 17, 21, 20, 23, 20, 24, 21, 23, 22, 20, 22, 17, 18, 22, 19, 20.72],
+            [51, "Shiori", "Kuwahara", 19, 21, 16, 23, 20, 19, 21, 22, 21, 16, 24, 23, 21, 21, 23, 23, 21, 21.04]
+        ];
+
+        let currentData = stage1Data;
+
+        function renderTable(data, stageName) {
+            const header = ['Nr', 'First Name', 'Last Name', ...juryMembers, 'Average'];
+            let html = `<h3>${stageName}</h3><table><thead><tr>`;
+            
+            header.forEach(h => {
+                html += `<th>${h}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            data.forEach(row => {
+                html += '<tr>';
+                row.forEach((cell, idx) => {
+                    if (idx < 3) {
+                        html += `<td style="text-align: left; font-weight: bold;">${cell}</td>`;
+                    } else {
+                        html += `<td>${cell}</td>`;
+                    }
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function updatePreview() {
+            const stage = document.getElementById('stageSelect').value;
+            const stageNames = {
+                'stage1': 'Stage 1 - First Round',
+                'stage2': 'Stage 2 - Second Round',
+                'stage3': 'Stage 3 - Third Round',
+                'final': 'Final Stage'
+            };
+            
+            switch(stage) {
+                case 'stage1':
+                    currentData = stage1Data;
+                    break;
+                case 'stage2':
+                    currentData = stage2Data;
+                    break;
+                case 'stage3':
+                    currentData = stage3Data;
+                    break;
+                case 'final':
+                    currentData = finalData;
+                    break;
+            }
+            
+            document.getElementById('preview').innerHTML = renderTable(currentData, stageNames[stage]);
+        }
+
+        function arrayToCSV(data) {
+            const header = ['Nr', 'First Name', 'Last Name', ...juryMembers, 'Average Score'];
+            const rows = [header, ...data];
+            return rows.map(row => row.map(cell => {
+                const cellStr = String(cell);
+                if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                    return `"${cellStr.replace(/"/g, '""')}"`;
+                }
+                return cellStr;
+            }).join(',')).join('\n');
+        }
+
+        function downloadCSV() {
+            const csv = arrayToCSV(currentData);
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const stage = document.getElementById('stageSelect').value;
+            link.href = URL.createObjectURL(blob);
+            link.download = `chopin_competition_${stage}_scores.csv`;
+            link.click();
+        }
+
+        function downloadXLSX() {
+            const header = ['Nr', 'First Name', 'Last Name', ...juryMembers, 'Average Score'];
+            const wsData = [header, ...currentData];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            
+            const colWidths = [
+                {wch: 5}, {wch: 15}, {wch: 15},
+                ...juryMembers.map(() => ({wch: 18})),
+                {wch: 12}
+            ];
+            ws['!cols'] = colWidths;
+            
+            const wb = XLSX.utils.book_new();
+            const stage = document.getElementById('stageSelect').value;
+            XLSX.utils.book_append_sheet(wb, ws, stage);
+            XLSX.writeFile(wb, `chopin_competition_${stage}_scores.xlsx`);
+        }
+
+        document.getElementById('stageSelect').addEventListener('change', updatePreview);
+        
+        updatePreview();
+    </script>
+</body>
+</html>
